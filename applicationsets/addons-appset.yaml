@@ -10,20 +10,27 @@ spec:
     - git:
         repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
         revision: HEAD
-        directories:
-          - path: addons/*
+        files:
+          - path: addons/*/config.json
   template:
     metadata:
       name: 'addon-{{ .path.basename }}'
     spec:
       project: default
-      source:
-        repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
-        targetRevision: HEAD
-        path: '{{ .path.path }}'
+      sources:
+        - repoURL: '{{ .repoURL }}'
+          chart: '{{ .chart }}'
+          targetRevision: '{{ .targetRevision }}'
+          helm:
+            releaseName: '{{ .path.basename }}'
+            valueFiles:
+              - $values/{{ .path.path }}/values.yaml
+        - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+          targetRevision: HEAD
+          ref: values
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{ .path.basename }}'
+        namespace: '{{ .namespace }}'
       syncPolicy:
         automated:
           selfHeal: true
