@@ -1,0 +1,26 @@
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 400m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+postgresql:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 5Gi
+
+account:
+  adminPassword: admin
