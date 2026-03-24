@@ -8,3 +8,7 @@ resources:
   - configmap.yaml
   - db-init-job.yaml
   - ingress.yaml
+
+images:
+  - name: acrtogglemasterprod.azurecr.io/targeting-service
+    newTag: latest
