@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-load-test
+  namespace: togglemaster-loadtest
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:latest
+          command: ["k6", "run", "/scripts/k6-load-test.js"]
+          env:
+            - name: BASE_URL
+              value: "http://ingress-nginx-controller.ingress-nginx.svc.cluster.local"
+            - name: API_KEY
+              value: "tm_key_service_internal_dev"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-test-script

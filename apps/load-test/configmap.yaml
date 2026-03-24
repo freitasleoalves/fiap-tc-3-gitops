@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-test-script
+  namespace: togglemaster-loadtest
+data:
+  k6-load-test.js: |
+    import http from 'k6/http';
+    import { check, sleep, group } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    const BASE_URL = __ENV.BASE_URL || 'http://localhost';
+    const API_KEY  = __ENV.API_KEY  || 'tm_key_service_internal_dev';
+
+    const evaluateErrors = new Rate('evaluate_errors');
+    const evaluateLatency = new Trend('evaluate_latency', true);
+
+    export const options = {
+      scenarios: {
+        ramp_up: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '1m', target: 50 },
+            { duration: '2m', target: 100 },
+            { duration: '2m', target: 200 },
+            { duration: '1m', target: 0 },
+          ],
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed:   ['rate<0.05'],
+        evaluate_errors:   ['rate<0.10'],
+      },
+    };
+
+    export function setup() {
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`,
+      };
+      const flagPayload = JSON.stringify({
+        name: 'load-test-flag',
+        description: 'Flag criada pelo teste de carga k6',
+        is_enabled: true,
+      });
+      http.post(`${BASE_URL}/flags/flags`, flagPayload, { headers });
+      const rulePayload = JSON.stringify({
+        flag_name: 'load-test-flag',
+        is_enabled: true,
+        rules: { percentage: 100, conditions: [] },
+      });
+      http.post(`${BASE_URL}/targeting/rules`, rulePayload, { headers });
+      return { headers };
+    }
+
+    export default function (data) {
+      const headers = data.headers;
+      const userId = `user-${__VU}-${__ITER}`;
+
+      group('Health Checks', () => {
+        for (const svc of ['auth', 'flags', 'targeting', 'evaluate', 'analytics']) {
+          const res = http.get(`${BASE_URL}/${svc}/health`);
+          check(res, { [`${svc} health 200`]: (r) => r.status === 200 });
+        }
+      });
+
+      group('Evaluate', () => {
+        const start = Date.now();
+        const res = http.get(
+          `${BASE_URL}/evaluate/evaluate?flag_name=load-test-flag&user_id=${userId}`
+        );
+        evaluateLatency.add(Date.now() - start);
+        const ok = check(res, { 'evaluate 200': (r) => r.status === 200 });
+        evaluateErrors.add(!ok);
+      });
+
+      sleep(0.5);
+    }
+
+    export function teardown(data) {
+      const headers = data.headers;
+      http.del(`${BASE_URL}/targeting/rules/load-test-flag`, null, { headers });
+      http.del(`${BASE_URL}/flags/flags/load-test-flag`, null, { headers });
+    }

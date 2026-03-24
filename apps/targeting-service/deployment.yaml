@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: targeting-service
+  namespace: togglemaster-targeting
+  labels:
+    app: targeting-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: targeting-service
+  template:
+    metadata:
+      labels:
+        app: targeting-service
+    spec:
+      containers:
+        - name: targeting-service
+          image: acrtogglemasterprod.azurecr.io/targeting-service:latest
+          ports:
+            - containerPort: 8003
+          env:
+            - name: PORT
+              value: "8003"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-secrets
+                  key: targeting-database-url
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service.togglemaster-auth.svc.cluster.local:8001"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: targeting-service
+  namespace: togglemaster-targeting
+spec:
+  selector:
+    app: targeting-service
+  ports:
+    - port: 8003
+      targetPort: 8003
+  type: ClusterIP
