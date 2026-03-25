@@ -28,3 +28,5 @@ postgresql:
 
 account:
   adminPassword: admin
+
+monitoringPasscode: define_it
