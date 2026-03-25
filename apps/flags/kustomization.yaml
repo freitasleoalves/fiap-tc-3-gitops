@@ -6,6 +6,7 @@ resources:
 - configmap.yaml
 - db-init-job.yaml
 - ingress.yaml
+- secrets.yaml
 images:
 - name: acrtogglemasterprod.azurecr.io/flag-service
   newTag: a3d35cae9d3967d5fdf73883114d42763695b4c4
