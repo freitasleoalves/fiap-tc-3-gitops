@@ -11,10 +11,10 @@ spec:
         repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
         revision: HEAD
         directories:
-          - path: apps/*
+          - path: apps/*/overlays/prod
   template:
     metadata:
-      name: 'app-{{ .path.basename }}'
+      name: 'app-{{ index .path.segments 1 }}'
     spec:
       project: default
       source:
@@ -23,7 +23,7 @@ spec:
         path: '{{ .path.path }}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'togglemaster-{{ .path.basename }}'
+        namespace: 'togglemaster-{{ index .path.segments 1 }}'
       syncPolicy:
         automated:
           selfHeal: true
