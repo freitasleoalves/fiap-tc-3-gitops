@@ -9,4 +9,4 @@ resources:
 - secrets.yaml
 images:
 - name: acrtogglemasterprod.azurecr.io/flag-service
-  newTag: 57cebb491f0ff1e0aa31957601d2892a1584373c
+  newTag: cef052cc826a27aaf1e3316a7707ef477cec7c6e
