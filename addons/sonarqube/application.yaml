@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: addon-sonarqube
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://SonarSource.github.io/helm-chart-sonarqube
+      chart: sonarqube
+      targetRevision: 2026.2.0
+      helm:
+        releaseName: sonarqube
+        valueFiles:
+          - $values/addons/sonarqube/values.yaml
+
+    - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+      targetRevision: HEAD
+      ref: values
+
+    - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+      targetRevision: HEAD
+      path: addons/sonarqube
+      directory:
+        include: "ingress.yaml"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sonarqube
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

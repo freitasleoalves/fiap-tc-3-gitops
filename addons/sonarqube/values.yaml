@@ -1,0 +1,35 @@
+community:
+  enabled: true
+
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 400m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: 16.6.0-debian-12-r6
+  persistence:
+    enabled: true
+    size: 5Gi
+
+account:
+  adminPassword: admin
+
+monitoringPasscode: define_it
