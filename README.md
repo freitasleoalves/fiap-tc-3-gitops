@@ -178,6 +178,88 @@ Servidor de análise de qualidade e cobertura de código, acessível via IP púb
 | PostgreSQL | `bitnami/postgresql:16.6.0-debian-12-r6` |
 | Usuário admin | `admin` |
 
+## Observabilidade (Fase 4)
+
+Stack de observabilidade Opensource + APM, toda provisionada via GitOps
+(`addons/kube-prometheus-stack`, `addons/loki`, `addons/otel-collector-gateway`,
+`addons/otel-collector-logs`, `addons/grafana-dashboards`), com o **OTel
+Collector como peça central** de roteamento de telemetria.
+
+```
+Microsserviços (OTel SDK) ──OTLP gRPC:4317──► otel-collector (Deployment/gateway)
+                                                   │
+Todos os pods do cluster ──filelog──► otel-collector-logs (DaemonSet)
+                                                   │
+                              ┌────────────────────┼────────────────────┐
+                              ▼                    ▼                    ▼
+                    prometheusremotewrite   otlphttp (/otlp)      datadog exporter
+                              │                    │                    │
+                              ▼                    ▼                    ▼
+                        Prometheus               Loki              Datadog APM
+                         (métricas)              (logs)     (traces + Service Map)
+                              │                    │
+                              └─────────► Grafana ◄┘
+                                    (dashboard "ToggleMaster - Overview")
+```
+
+| Addon | Chart | Namespace | Função |
+|-------|-------|-----------|--------|
+| `kube-prometheus-stack` | `prometheus-community/kube-prometheus-stack` `87.17.0` | `monitoring` | Prometheus (+ remote-write receiver), Grafana, Alertmanager, node-exporter, kube-state-metrics |
+| `loki` | `grafana/loki` `7.1.0` | `monitoring` | Armazenamento e indexação de logs (SingleBinary, ingestão OTLP nativa em `/otlp`) |
+| `otel-collector-gateway` | `open-telemetry/opentelemetry-collector` `0.165.0` (modo `deployment`) | `monitoring` | Recebe OTLP dos 5 microsserviços e roteia: métricas → Prometheus, logs → Loki, traces → Datadog |
+| `otel-collector-logs` | `open-telemetry/opentelemetry-collector` `0.165.0` (modo `daemonset`) | `monitoring` | Coleta os logs de **todos** os containers do cluster (`filelog` receiver) e envia para o Loki |
+| `grafana-dashboards` | manifest simples (ConfigMap) | `monitoring` | Dashboard customizado `ToggleMaster - Overview` (recursos do cluster, taxa de requisições/erros por serviço, logs em tempo real) |
+
+### Instrumentação dos microsserviços
+
+Cada Deployment em `apps/*/base/deployment.yaml` define as variáveis padrão do
+OpenTelemetry SDK, apontando para o Collector dentro do cluster:
+
+```yaml
+- name: OTEL_SERVICE_NAME
+  value: "<nome-do-serviço>"
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "http://otel-collector.monitoring.svc.cluster.local:4317"
+- name: OTEL_EXPORTER_OTLP_PROTOCOL
+  value: "grpc"
+- name: OTEL_RESOURCE_ATTRIBUTES
+  value: "deployment.environment=prod"
+```
+
+O código-fonte de cada serviço (repositórios `fiap-tc-3-*-service`) foi
+atualizado com as bibliotecas de instrumentação OpenTelemetry (Go: `otelhttp`
++ SDK de traces/métricas; Python: `opentelemetry-distro` + auto-instrumentação
+via Dockerfile), incluindo um contador HTTP customizado
+(`togglemaster_http_requests_total`) usado no dashboard do Grafana.
+
+### Secret obrigatório: Datadog API Key
+
+O exporter `datadog` do `otel-collector-gateway` precisa de uma API Key real
+para autenticar no APM. Edite `addons/otel-collector-gateway/secrets.yaml` e
+substitua o placeholder antes de sincronizar a Application no ArgoCD:
+
+```yaml
+stringData:
+  DD_API_KEY: "<sua API Key do Datadog>"
+```
+
+### Alertas, Incidentes e Self-Healing
+
+- **Alerta inteligente**: configurado como um **Monitor no Datadog** (APM),
+  ex.: taxa de erros HTTP 5xx do `evaluation-service` > 5% em 5 minutos
+  (ver `fiap-tc-3-terraform/datadog.tf`, gerenciado como código).
+- **Gerenciamento de incidentes**: o Monitor do Datadog está integrado ao
+  **PagerDuty** (abre incidente automaticamente) via `@pagerduty-<service>`
+  na mensagem do monitor.
+- **ChatOps**: o mesmo Monitor notifica um canal do **Discord** via webhook
+  (`@webhook-discord-alerts`), com o payload detalhado do incidente.
+- **Self-Healing (obrigatório)**: o Monitor também dispara `@webhook-github-selfheal`,
+  que chama a GitHub Dispatches API deste repositório
+  (`.github/workflows/self-heal.yml`, evento `repository_dispatch`), executando
+  `kubectl rollout restart deployment/<serviço>` no AKS — sem intervenção humana.
+  Requer os secrets do repositório `AZURE_CREDENTIALS`, `AKS_RESOURCE_GROUP` e
+  `AKS_CLUSTER_NAME` (Settings > Secrets and variables > Actions).
+
 ## ApplicationSet (descoberta automática de apps)
 
 O `apps-appset.yaml` usa um **Git Directory Generator** que descobre microsserviços automaticamente:

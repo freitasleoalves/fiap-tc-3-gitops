@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: addon-otel-collector-gateway
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.165.0
+      helm:
+        releaseName: otel-collector
+        valueFiles:
+          - $values/addons/otel-collector-gateway/values.yaml
+
+    - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+      targetRevision: HEAD
+      ref: values
+
+    - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+      targetRevision: HEAD
+      path: addons/otel-collector-gateway
+      directory:
+        include: "secrets.yaml"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

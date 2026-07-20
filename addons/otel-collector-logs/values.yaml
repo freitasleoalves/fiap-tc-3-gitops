@@ -1,0 +1,60 @@
+# ToggleMaster - OTel Collector (Logs, DaemonSet)
+#
+# Roda em todo nó do cluster e centraliza os logs de TODOS os contêineres
+# (não apenas dos 5 microsserviços instrumentados), lendo diretamente os
+# arquivos de log do containerd (/var/log/pods) e enviando para o Loki via
+# OTLP. Continua sendo o mesmo "OTel Collector" como peça central exigido
+# pelo desafio — só que operando em modo DaemonSet.
+
+mode: daemonset
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.156.0"
+
+# Habilita o filelog receiver com parsing padrão de logs de containerd/CRI
+# + os hostPath mounts e RBAC necessários.
+presets:
+  logsCollection:
+    enabled: true
+    includeCollectorLogs: false
+  kubernetesAttributes:
+    enabled: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 100Mi
+  limits:
+    cpu: 200m
+    memory: 200Mi
+
+config:
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+    # filelog (via preset logsCollection) e k8sattributes (via preset
+    # kubernetesAttributes) são injetados automaticamente na pipeline abaixo.
+
+  exporters:
+    otlphttp/loki:
+      endpoint: "http://loki.monitoring.svc.cluster.local:3100/otlp"
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      logs:
+        exporters: [otlphttp/loki]
+
+# DaemonSet não precisa expor Service; apenas coleta e envia.
+ports:
+  otlp:
+    enabled: false
+  otlp-http:
+    enabled: false
+  metrics:
+    enabled: true

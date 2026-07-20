@@ -1,0 +1,73 @@
+# ToggleMaster - Loki (SingleBinary / monolithic, storage local em disco)
+# Recebe logs via OTLP nativo (http://loki:3100/otlp/v1/logs), enviados pelo
+# OTel Collector (gateway e daemonset de logs).
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+
+  commonConfig:
+    replication_factor: 1
+
+  storage:
+    type: filesystem
+
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+  limits_config:
+    retention_period: 72h
+    ingestion_rate_mb: 16
+    ingestion_burst_size_mb: 32
+    allow_structured_metadata: true
+
+  compactor:
+    retention_enabled: true
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Sem gateway nginx: acesso direto ao serviço `loki` na porta 3100,
+# apenas dentro do cluster (OTel Collector e Grafana).
+gateway:
+  enabled: false
+
+# Componentes do modo "distributed" não usados no SingleBinary.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false
+
+lokiCanary:
+  enabled: false

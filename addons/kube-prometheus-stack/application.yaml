@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: addon-kube-prometheus-stack
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 87.17.0
+      helm:
+        releaseName: kube-prometheus-stack
+        valueFiles:
+          - $values/addons/kube-prometheus-stack/values.yaml
+
+    - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+      targetRevision: HEAD
+      ref: values
+
+    - repoURL: https://github.com/freitasleoalves/fiap-tc-3-gitops.git
+      targetRevision: HEAD
+      path: addons/kube-prometheus-stack
+      directory:
+        include: "grafana-ingress.yaml"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

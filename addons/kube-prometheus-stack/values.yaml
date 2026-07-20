@@ -1,0 +1,126 @@
+# ToggleMaster - kube-prometheus-stack
+# Base de observabilidade opensource: Prometheus (métricas de infra + métricas
+# roteadas pelo OTel Collector via remote-write) + Grafana (visualização) +
+# Alertmanager (bundled).
+
+fullnameOverride: kube-prometheus-stack
+
+# ------------------------------------------------------------------
+# Prometheus
+# ------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    # Habilita o endpoint /api/v1/write para que o OTel Collector consiga
+    # empurrar (via exporter prometheusremotewrite) as métricas dos
+    # microsserviços diretamente para o Prometheus.
+    enableRemoteWriteReceiver: true
+
+    # Descobre ServiceMonitors/PodMonitors de qualquer namespace/release,
+    # não só os criados por este próprio Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    resources:
+      requests:
+        cpu: 150m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+# ------------------------------------------------------------------
+# Alertmanager (bundled; alerta principal do desafio roda via Datadog,
+# mas mantemos o Alertmanager ativo para alertas de infraestrutura do
+# Prometheus, ex.: node down).
+# ------------------------------------------------------------------
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+
+# ------------------------------------------------------------------
+# Grafana
+# ------------------------------------------------------------------
+grafana:
+  fullnameOverride: kube-prometheus-stack-grafana
+  adminUser: admin
+  adminPassword: "ToggleMaster2026!" # troque antes de subir para produção real
+
+  persistence:
+    enabled: true
+    size: 2Gi
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Sidecar que carrega dashboards a partir de ConfigMaps com o label
+  # grafana_dashboard: "1" (usado pelo addon addons/grafana-dashboards).
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folder: /tmp/dashboards
+    datasources:
+      enabled: true
+
+  # Datasource do Loki, além do Prometheus (criado automaticamente pelo chart).
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+      jsonData:
+        maxLines: 1000
+
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/grafana/"
+      serve_from_sub_path: true
+
+# ------------------------------------------------------------------
+# Exporters de infraestrutura (uso de recursos do cluster)
+# ------------------------------------------------------------------
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+# Componentes não utilizados neste cluster gerenciado (AKS) ou fora de escopo.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false

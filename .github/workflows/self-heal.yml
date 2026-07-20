@@ -1,0 +1,92 @@
+name: Self-Healing - Runbook Automation
+
+# Disparado via webhook do Datadog (Monitor -> Integração Webhook) quando um
+# alerta de "Alertas Inteligentes" entra em estado Alert/Triggered.
+# O Datadog faz um POST para a GitHub Dispatches API:
+#
+#   POST https://api.github.com/repos/freitasleoalves/fiap-tc-3-gitops/dispatches
+#   Authorization: Bearer <GitHub PAT com escopo 'repo'>
+#   Accept: application/vnd.github+json
+#   {
+#     "event_type": "self-heal",
+#     "client_payload": {
+#       "service": "evaluation-service",
+#       "alert_title": "$ALERT_TITLE",
+#       "alert_id": "$ALERT_ID"
+#     }
+#   }
+#
+# Ação corretiva: kubectl rollout restart do Deployment afetado, sem
+# intervenção humana (self-healing obrigatório do desafio).
+
+on:
+  repository_dispatch:
+    types: [self-heal]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Nome do serviço a reiniciar (ex: evaluation-service)"
+        required: true
+        type: choice
+        options:
+          - auth-service
+          - flag-service
+          - targeting-service
+          - evaluation-service
+          - analytics-service
+
+permissions:
+  contents: read
+
+jobs:
+  rollout-restart:
+    name: kubectl rollout restart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve serviço e namespace (allowlist)
+        id: target
+        env:
+          SERVICE_INPUT: ${{ github.event.client_payload.service || inputs.service }}
+        run: |
+          set -euo pipefail
+          case "$SERVICE_INPUT" in
+            auth-service)       NAMESPACE="togglemaster-auth" ;;
+            flag-service)       NAMESPACE="togglemaster-flags" ;;
+            targeting-service)  NAMESPACE="togglemaster-targeting" ;;
+            evaluation-service) NAMESPACE="togglemaster-evaluation" ;;
+            analytics-service)  NAMESPACE="togglemaster-analytics" ;;
+            *)
+              echo "::error::Serviço desconhecido ou não permitido: '$SERVICE_INPUT'"
+              exit 1
+              ;;
+          esac
+          echo "service=$SERVICE_INPUT" >> "$GITHUB_OUTPUT"
+          echo "namespace=$NAMESPACE" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --overwrite-existing
+
+      - name: Self-Healing - rollout restart
+        run: |
+          echo "### Self-Healing acionado ###"
+          echo "Serviço: ${{ steps.target.outputs.service }}"
+          echo "Namespace: ${{ steps.target.outputs.namespace }}"
+          echo "Alerta: ${{ github.event.client_payload.alert_title || 'disparo manual' }}"
+          kubectl rollout restart deployment/${{ steps.target.outputs.service }} \
+            -n ${{ steps.target.outputs.namespace }}
+          kubectl rollout status deployment/${{ steps.target.outputs.service }} \
+            -n ${{ steps.target.outputs.namespace }} --timeout=120s
+
+      - name: Evidência - pods após o restart
+        if: always()
+        run: |
+          kubectl get pods -n ${{ steps.target.outputs.namespace }} -o wide
