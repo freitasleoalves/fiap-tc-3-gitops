@@ -51,6 +51,12 @@ singleBinary:
 gateway:
   enabled: false
 
+# Cache de chunks (memcached) é apenas uma otimização de leitura; o valor
+# padrão do chart pede ~9.6Gi de memória, incompatível com nós pequenos
+# (Standard_B2s). Desabilitado para este ambiente de baixo volume.
+chunksCache:
+  enabled: false
+
 # Componentes do modo "distributed" não usados no SingleBinary.
 read:
   replicas: 0
