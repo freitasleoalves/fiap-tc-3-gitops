@@ -16,6 +16,16 @@ image:
   repository: otel/opentelemetry-collector-contrib
   tag: "0.156.0"
 
+# A partir da 0.13x, o exporter datadog passou a pular o cálculo de APM
+# Stats (trace.* metrics, base do Service Map e dos Monitors de erro) por
+# padrão, recomendando o uso do Datadog Connector. Para manter Service Map +
+# alertas de taxa de erro funcionando via um único exporter (mais simples
+# para este ambiente de baixo volume), reabilitamos o comportamento antigo
+# através do feature gate.
+command:
+  extraArgs:
+    - "--feature-gates=-exporter.datadogexporter.DisableAPMStats"
+
 # Injeta metadados de Pod/Namespace/Deployment em tudo que passa pelo
 # Collector (processor k8sattributes) e cuida do RBAC necessário.
 presets:
