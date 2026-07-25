@@ -72,6 +72,13 @@ grafana:
     enabled: true
     size: 2Gi
 
+  # O disco do Azure (PVC) é ReadWriteOnce: com a estratégia padrão
+  # (RollingUpdate) o pod novo pode ficar preso em "Multi-Attach error"
+  # esperando o volume, enquanto o pod antigo nunca é removido (deadlock).
+  # Recreate evita isso, ao custo de um pequeno downtime a cada deploy.
+  deploymentStrategy:
+    type: Recreate
+
   resources:
     requests:
       cpu: 50m
