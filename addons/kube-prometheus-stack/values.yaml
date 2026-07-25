@@ -79,13 +79,18 @@ grafana:
   deploymentStrategy:
     type: Recreate
 
+  # Grafana 13.x roda uma camada de API "estilo Kubernetes" (dashboards,
+  # folders, quotas) por baixo que consome bem mais memória que as versões
+  # clássicas. 256Mi era insuficiente: o container ficava colado no limite
+  # (~252Mi usado de 256Mi), causando timeouts em cascata em quase toda
+  # requisição (contexts cancelados, "Handler timeout" etc.).
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 384Mi
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 500m
+      memory: 768Mi
 
   # Sidecar que carrega dashboards a partir de ConfigMaps com o label
   # grafana_dashboard: "1" (usado pelo addon addons/grafana-dashboards).
