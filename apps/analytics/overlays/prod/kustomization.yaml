@@ -9,4 +9,4 @@ resources:
 - secrets.yaml
 images:
 - name: acrtogglemasterprod.azurecr.io/analytics-service
-  newTag: 09c0c3d75ae7c2fd955a532f5252842c8f558ab0
+  newTag: dff6caf0f02344e21861ceca624fd71dd4a73316
