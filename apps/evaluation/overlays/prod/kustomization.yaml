@@ -9,4 +9,4 @@ resources:
 - secrets.yaml
 images:
 - name: acrtogglemasterprod.azurecr.io/evaluation-service
-  newTag: 4d77750cd79eb5a554eb20d981e90e5a077aedb2
+  newTag: 3667ec1e892e176d1e51207fb016cf9faffe03a6
