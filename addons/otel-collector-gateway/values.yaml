@@ -70,7 +70,7 @@ config:
     datadog:
       api:
         key: ${env:DD_API_KEY}
-        site: datadoghq.com
+        site: us5.datadoghq.com
 
   service:
     telemetry:
