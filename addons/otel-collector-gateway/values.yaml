@@ -10,6 +10,12 @@
 
 mode: deployment
 
+# O chart por padrão gera o Service como "<release>-opentelemetry-collector"
+# (ex.: otel-collector-opentelemetry-collector). Fixamos aqui para "otel-collector"
+# puro, que é o hostname usado em OTEL_EXPORTER_OTLP_ENDPOINT nos Deployments
+# dos 5 microsserviços (apps/*/base/deployment.yaml).
+fullnameOverride: otel-collector
+
 replicaCount: 1
 
 image:
