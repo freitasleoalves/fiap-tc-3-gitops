@@ -103,6 +103,12 @@ grafana:
 
   grafana.ini:
     server:
+      # "domain" precisa ser o host/IP público real do ingress-nginx (LoadBalancer),
+      # senão o Grafana redireciona pra "localhost" (default de %(domain)s) e o
+      # acesso externo quebra com 301 para uma URL inacessível. Atualize se o IP
+      # do LoadBalancer mudar (ex.: depois de um destroy/apply da infra) — veja
+      # `kubectl get svc ingress-nginx-controller -n ingress-nginx`.
+      domain: "4.156.223.110"
       root_url: "%(protocol)s://%(domain)s/grafana/"
       serve_from_sub_path: true
 
