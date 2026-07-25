@@ -3,15 +3,18 @@ kind: Ingress
 metadata:
   name: grafana-ingress
   namespace: monitoring
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  # SEM rewrite-target: o Grafana está configurado com serve_from_sub_path:
+  # true (grafana.ini), então ele mesmo já sabe lidar com o prefixo /grafana
+  # nas URLs. Se o ingress reescrever removendo o prefixo, o Grafana fica
+  # tentando redirecionar de volta para uma URL com /grafana, e o nginx
+  # remove de novo -> loop infinito de redirect (HTTP 301 sem fim).
 spec:
   ingressClassName: nginx
   rules:
     - http:
         paths:
-          - path: /grafana(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /grafana
+            pathType: Prefix
             backend:
               service:
                 name: kube-prometheus-stack-grafana
