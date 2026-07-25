@@ -30,3 +30,17 @@ spec:
           prune: true
         syncOptions:
           - CreateNamespace=true
+      # As credenciais reais de Redis/Service Bus/Cosmos DB são aplicadas
+      # diretamente no cluster (kubectl), fora do Git, para não expor chaves
+      # ativas do Azure num repositório público (o GitHub Push Protection
+      # bloqueia esse tipo de commit). O manifesto em secrets.yaml existe só
+      # como placeholder/documentação da estrutura esperada do Secret.
+      ignoreDifferences:
+        - kind: Secret
+          name: redis-secrets
+          jsonPointers:
+            - /stringData
+        - kind: Secret
+          name: azure-secrets
+          jsonPointers:
+            - /stringData

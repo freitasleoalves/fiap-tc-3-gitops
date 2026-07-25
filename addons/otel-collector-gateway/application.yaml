@@ -33,3 +33,10 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=true
+  # A API Key real do Datadog é aplicada diretamente no cluster (kubectl),
+  # fora do Git — ver addons/otel-collector-gateway/secrets.yaml.
+  ignoreDifferences:
+    - kind: Secret
+      name: datadog-api-key
+      jsonPointers:
+        - /stringData
