@@ -9,4 +9,4 @@ resources:
 - secrets.yaml
 images:
 - name: acrtogglemasterprod.azurecr.io/targeting-service
-  newTag: c77d560cf6963d3076af7a8f4cfe043e63530875
+  newTag: cd0f83b91acf96ddf8836fd4b4cf10cfd4de337f
