@@ -9,4 +9,4 @@ resources:
 - secrets.yaml
 images:
 - name: acrtogglemasterprod.azurecr.io/auth-service
-  newTag: 47f07c7d6667cab23d8a6b2786fd18e5164f2154
+  newTag: 7383316c1bc7ef30169a26e2cd5238df64dc0fb9
